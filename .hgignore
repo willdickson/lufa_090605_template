@@ -1,0 +1,17 @@
+syntax: glob
+*.pyc
+*~
+*.o
+*.egg-info
+*.hex
+*.lst
+*.elf
+*.eep
+*.cof
+*.map
+*.sym
+*.lss
+*.s
+*.d
+*.swp
+MyUSB
