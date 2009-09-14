@@ -16,6 +16,7 @@
 
 /* Macros: */
 /* USB Commands */
+#define USB_CMD_TEST 0
 #define USB_CMD_AVR_RESET       200
 #define USB_CMD_AVR_DFU_MODE    201
 
@@ -26,12 +27,14 @@
 
 typedef struct
 {
-    uint8_t     CommandID;
+    uint8_t CommandID;
+    uint8_t Data;
 } USBPacketOutWrapper_t;
 
 typedef struct
 {
-    uint8_t     CommandID;
+    uint8_t CommandID;
+    uint8_t Data;
 } USBPacketInWrapper_t;
 
 /* Enums: */
@@ -45,6 +48,7 @@ enum PWM_StatusCodes_t
 };
 
 /* Global Variables: */
+uint8_t count=0;
 USBPacketOutWrapper_t   USBPacketOut;
 USBPacketInWrapper_t    USBPacketIn;
 

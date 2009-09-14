@@ -151,6 +151,11 @@ TASK(USB_ProcessPacket)
                 /* Process USB packet */
                 switch (USBPacketOut.CommandID) {
 
+                    case USB_CMD_TEST:
+                        count += 1;
+                        USBPacketIn.Data = count;
+                        break;
+                        
                     case USB_CMD_AVR_RESET:
                         USBPacket_Write();
                         AVR_RESET();
