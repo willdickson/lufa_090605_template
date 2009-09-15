@@ -49,6 +49,7 @@ int main(void)
 
     /* Scheduling - routine never returns, so put this last in the main function */
     Scheduler_Start();
+
 }
 
 /** Event handler for the USB_Connect event. This indicates that the device is enumerating via the status LEDs and
@@ -82,12 +83,12 @@ void EVENT_USB_Disconnect(void)
 void EVENT_USB_ConfigurationChanged(void)
 {
     /* Setup USB In and Out Endpoints */
-    Endpoint_ConfigureEndpoint(IN_EPNUM, EP_TYPE_BULK,
-            ENDPOINT_DIR_IN, IN_EPSIZE,
-            ENDPOINT_BANK_SINGLE);
-
     Endpoint_ConfigureEndpoint(OUT_EPNUM, EP_TYPE_BULK,
             ENDPOINT_DIR_OUT, OUT_EPSIZE,
+            ENDPOINT_BANK_SINGLE); 
+
+    Endpoint_ConfigureEndpoint(IN_EPNUM, EP_TYPE_BULK,
+            ENDPOINT_DIR_IN, IN_EPSIZE,
             ENDPOINT_BANK_SINGLE);
 
     /* Indicate USB connected and ready */
@@ -148,12 +149,19 @@ TASK(USB_ProcessPacket)
                 /* Return the same CommandID that was received */
                 USBPacketIn.CommandID = USBPacketOut.CommandID;
 
+
                 /* Process USB packet */
                 switch (USBPacketOut.CommandID) {
 
                     case USB_CMD_TEST:
                         count += 1;
-                        USBPacketIn.Data = count;
+                        USBPacketIn.DataPacket.Data[0] = count;
+                        USBPacketIn.DataPacket.Len = 30;
+                        /*
+                        for (int j; j<30; j++) {
+                            USBPacketIn.DataPacket.Data[j] = count + j;
+                        }
+                        */
                         break;
                         
                     case USB_CMD_AVR_RESET:
@@ -180,6 +188,7 @@ TASK(USB_ProcessPacket)
         }
     }
 }
+
 static void USBPacket_Read(void)
 {
     uint8_t* USBPacketOutPtr = (uint8_t*)&USBPacketOut;
@@ -206,6 +215,14 @@ static void USBPacket_Write(void)
 
     /* Write the return data to the endpoint */
     Endpoint_Write_Stream_LE(USBPacketInPtr, sizeof(USBPacketIn));
+
+    /*
+    uint8_t *ptr;
+    ptr = (uint8_t *) USBPacketInPtr;
+    for (uint8_t i=0; i<62; i++) {
+        Endpoint_Write_Byte(*(ptr+i));
+    }
+    */
 
     /* Finalize the stream transfer to send the last packet */
     Endpoint_ClearIN();

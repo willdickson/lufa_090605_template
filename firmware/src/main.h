@@ -27,14 +27,20 @@
 
 typedef struct
 {
+    uint8_t Len;
+    uint16_t Data[30];
+} DataPacket_t;
+
+typedef struct
+{
     uint8_t CommandID;
-    uint8_t Data;
+    DataPacket_t DataPacket;
 } USBPacketOutWrapper_t;
 
 typedef struct
 {
     uint8_t CommandID;
-    uint8_t Data;
+    DataPacket_t DataPacket;
 } USBPacketInWrapper_t;
 
 /* Enums: */
@@ -48,7 +54,7 @@ enum PWM_StatusCodes_t
 };
 
 /* Global Variables: */
-uint8_t count=0;
+uint16_t count=0;
 USBPacketOutWrapper_t   USBPacketOut;
 USBPacketInWrapper_t    USBPacketIn;
 
