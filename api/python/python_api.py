@@ -40,7 +40,7 @@ import time
 import math
 import struct
 
-DEBUG = True 
+DEBUG = False 
 INT32_MAX = (2**32-1)/2
 
 # USB parameters
@@ -50,6 +50,7 @@ USB_BULKOUT_EP_ADDRESS = 0x01
 USB_BULKIN_EP_ADDRESS = 0x82
 USB_BUFFER_OUT_SIZE = 64 
 USB_BUFFER_IN_SIZE = 64
+USB_DATA_PACKET_SIZE = 30
 
 # USB Command IDs
 USB_CMD_TEST = 0
@@ -127,6 +128,7 @@ class USB_Device:
             if not found:
                 raise RuntimeError("Cannot find device w/ serial number %s."%(serial_number,))
 
+
         self.interface_nr = 0
         if hasattr(usb,'get_driver_np'):
             # non-portable libusb function available
@@ -139,7 +141,7 @@ class USB_Device:
         if dev.descriptor.bNumConfigurations > 1:
             debug("WARNING: more than one configuration, choosing first")
 
-        usb.set_configuration(self.libusb_handle, dev.config[0].bConfigurationValue)
+        usb.set_configuration(self.libusb_handle, self.dev.config[0].bConfigurationValue)
         usb.claim_interface(self.libusb_handle, self.interface_nr)
 
         self.output_buffer = ctypes.create_string_buffer(USB_BUFFER_OUT_SIZE)
@@ -148,6 +150,10 @@ class USB_Device:
             self.input_buffer[i] = chr(0x00)
         for i in range(USB_BUFFER_OUT_SIZE):
             self.output_buffer[i] = chr(0x00)
+
+        # Clear any possible halt on the endpoints
+        ret = usb.clear_halt(self.libusb_handle,USB_BULKOUT_EP_ADDRESS)
+        ret = usb.clear_halt(self.libusb_handle,USB_BULKIN_EP_ADDRESS)
 
 
     def close(self):
@@ -159,9 +165,7 @@ class USB_Device:
         Return: None
         """
         ret = usb.release_interface(self.libusb_handle,self.interface_nr)
-        print ret
         ret = usb.close(self.libusb_handle)
-        print ret
         return
 
     # -------------------------------------------------------------------------
@@ -332,6 +336,27 @@ class USB_Device:
             raise ValueError, "unknown int_type %s"%(int_type,)
         return val
 
+    def __write_to_buffer(cmd_id, data, data_type):
+        pass
+
+    def __read_from_buffer(data_type):
+        pass
+
+    def usb_cmd(self,cmd_id,data,data_type):
+
+        # Send command + value and receive data
+        self.output_buffer[0] = chr(cmd_id%0x100)
+
+        val_bytes = self.__int_to_bytes(val,val_type)
+        for i,byte in enumerate(val_bytes):
+            self.output_buffer[i+2] = byte
+        data = self.__send_and_receive()
+
+        # Extract returned data
+        cmd_id_received, ctl_byte = self.__get_usb_header(data)
+        check_cmd_id(cmd_id, cmd_id_received)
+        val = self.__get_usb_value(ctl_byte, data)
+        return val        
 
     def usb_set_cmd(self,cmd_id,val,io_update=True):
         """
@@ -513,13 +538,26 @@ if __name__ == '__main__':
 
     dev = USB_Device()
     dev.print_values()
-    #val = dev.usb_get_cmd(USB_CMD_TEST)
+    print 
 
-    for i in range(0,6):
-        val = dev.usb_get_cmd(USB_CMD_TEST)
-        print val
-    t1 = time.time()
+    if 1:
+        N = 500
+        t0 = time.time()
+        for i in range(0,N):
+            val = dev.usb_get_cmd(USB_CMD_TEST)
+        t1 = time.time()
+        dt_total = t1 - t0
+        dt = dt_total/float(N)
+        rate = float(N)/dt_total
+        print 'N:', N
+        print 'dt:', dt
+        print 'rate:', rate
+        print
 
+    if 1:
+        for i in range(0,10):
+            val = dev.usb_get_cmd(USB_CMD_TEST)
+            print val
 
     dev.close()
 

@@ -56,7 +56,7 @@ typedef struct {
 #define IN_EPNUM     2
 #define OUT_EPNUM    1
 #define IN_EPSIZE    64
-#define OUT_EPSIZE   64
+#define OUT_EPSIZE   64 
 
 /* Function Prototypes: */
 uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue, const uint8_t wIndex, void** const DescriptorAddress)

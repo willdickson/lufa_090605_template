@@ -155,13 +155,10 @@ TASK(USB_ProcessPacket)
 
                     case USB_CMD_TEST:
                         count += 1;
-                        USBPacketIn.DataPacket.Data[0] = count;
-                        USBPacketIn.DataPacket.Len = 30;
-                        /*
-                        for (int j; j<30; j++) {
-                            USBPacketIn.DataPacket.Data[j] = count + j;
+                        USBPacketIn.DataPacket.Len = DATAARRAY_UINT16_SIZE;
+                        for (int j=0; j< USBPacketIn.DataPacket.Len; j++) {
+                            USBPacketIn.DataPacket.Data.uint16[j] = count + j;
                         }
-                        */
                         break;
                         
                     case USB_CMD_AVR_RESET:

@@ -25,10 +25,27 @@
 #define AVR_IS_WDT_RESET()  ((MCUSR&(1<<WDRF)) ? 1:0)
 #define DFU_BOOT_KEY_VAL 0xAA55AA55
 
+#define DATAARRAY_INT8_SIZE 60
+#define DATAARRAY_UINT8_SIZE 60
+#define DATAARRAY_INT16_SIZE 30
+#define DATAARRAY_UINT16_SIZE 30
+#define DATAARRAY_INT32_SIZE 15 
+#define DATAARRAY_UINT32_SIZE 15
+
+typedef union 
+{
+    int8_t int8[DATAARRAY_INT8_SIZE];
+    uint8_t uint8[DATAARRAY_UINT8_SIZE];
+    int16_t int16[DATAARRAY_INT16_SIZE];
+    uint16_t uint16[DATAARRAY_UINT16_SIZE];
+    int32_t int32[DATAARRAY_INT32_SIZE];
+    uint32_t uint32[DATAARRAY_UINT32_SIZE];
+} DataArray_t;
+
 typedef struct
 {
     uint8_t Len;
-    uint16_t Data[30];
+    DataArray_t Data;
 } DataPacket_t;
 
 typedef struct
@@ -45,7 +62,7 @@ typedef struct
 
 /* Enums: */
 /** Enum for the possible status codes for passing to the UpdateStatus() function. */
-enum PWM_StatusCodes_t
+enum USB_StatusCodes_t
 {
     Status_USBNotReady          = 0, /**< USB is not ready (disconnected from a USB host) */
     Status_USBEnumerating       = 1, /**< USB interface is enumerating */
