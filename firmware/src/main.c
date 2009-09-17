@@ -153,11 +153,27 @@ TASK(USB_ProcessPacket)
                 /* Process USB packet */
                 switch (USBPacketOut.CommandID) {
 
-                    case USB_CMD_TEST:
+                    case USB_CMD_TEST8:
                         count += 1;
-                        USBPacketIn.DataPacket.Len = DATAARRAY_UINT16_SIZE;
-                        for (int j=0; j< USBPacketIn.DataPacket.Len; j++) {
-                            USBPacketIn.DataPacket.Data.uint16[j] = count + j;
+                        USBPacketIn.DataPacket.Len = DATAARRAY_UINT8_SIZE;
+                        for (int j=0; j< DATAARRAY_UINT8_SIZE; j++) {
+                            USBPacketIn.DataPacket.Data.uint8[j] = (uint8_t)(count + j);
+                        }
+                        break;
+
+                    case USB_CMD_TEST16:
+                        count += 1;
+                        USBPacketIn.DataPacket.Len = 2*DATAARRAY_UINT16_SIZE;
+                        for (int j=0; j< DATAARRAY_UINT16_SIZE; j++) {
+                            USBPacketIn.DataPacket.Data.uint16[j] = (uint16_t) (count + j);
+                        }
+                        break;
+
+                    case USB_CMD_TEST32:
+                        count += 1;
+                        USBPacketIn.DataPacket.Len = 4*DATAARRAY_UINT32_SIZE;
+                        for (int j=0; j< DATAARRAY_UINT32_SIZE; j++) {
+                            USBPacketIn.DataPacket.Data.uint32[j] = count + j;
                         }
                         break;
                         

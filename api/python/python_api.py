@@ -53,9 +53,23 @@ USB_BUFFER_IN_SIZE = 64
 USB_DATA_PACKET_SIZE = 30
 
 # USB Command IDs
-USB_CMD_TEST = 0
+USB_CMD_TEST8 = 0
+USB_CMD_TEST16 = 1
+USB_CMD_TEST32 = 2
 USB_CMD_AVR_RESET = 200
 USB_CMD_AVR_DFU_MODE = 201
+
+# Maximum data array lenghts for given types
+MAX_DATAARRAY_SIZE = 60
+
+DATA_SIZE_DICT = {
+        'int8_t'   : 1,
+        'uint8_t'  : 1,
+        'int16_t'  : 2,
+        'uint16_t' : 2,
+        'int32_t'  : 4,
+        'uint32_t' : 4,
+        }
 
 def debug(val):
     if DEBUG==True:
@@ -250,8 +264,8 @@ class USB_Device:
                  cmd_id   = the usb header command id
                  ctl_byte = the usb header control byte 
         """
-        cmd_id = self.__bytes_to_int(data[0:1],'uint8')
-        #ctl_byte = self.__bytes_to_int(data[1:2],'uint8')
+        cmd_id = self.__bytes_to_int(data[0:1],'uint8_t')
+        #ctl_byte = self.__bytes_to_int(data[1:2],'uint8_t')
         ctl_byte = 0
         return cmd_id, ctl_byte
         
@@ -265,14 +279,14 @@ class USB_Device:
           
         Return: the value return by the usb device.
         """
-        len = self.__bytes_to_int(data[1], 'uint8')
+        len = self.__bytes_to_int(data[1], 'uint8_t')
         val_list = []
         for i in range(0,2*len,2):
-            val = self.__bytes_to_int(data[2+i:2+i+2],'uint16')
+            val = self.__bytes_to_int(data[2+i:2+i+2],'uint16_t')
             val_list.append(val)
         return val_list
             
-        #return self.__bytes_to_int(data[1:], 'uint8')
+        #return self.__bytes_to_int(data[1:], 'uint8_t')
         
     def __int_to_bytes(self,val,int_type):
         """
@@ -281,18 +295,18 @@ class USB_Device:
         Arguments:
           val      = the integer value to convert
           int_type = the integer type specifier
-                     'uint8'  = unsigned 8 bit integer
-                     'uint16' = unsigned 16 bit integer
-                     'int32'  = signed 32 bit integer
+                     'uint8_t'  = unsigned 8 bit integer
+                     'uint16_t' = unsigned 16 bit integer
+                     'int32_t'  = signed 32 bit integer
                      
         Return: the integer converted to bytes.
         """
         int_type = int_type.lower()
-        if int_type == 'uint8':
+        if int_type == 'uint8_t':
             bytes = [chr(val&0xFF)]
-        elif int_type == 'uint16':
+        elif int_type == 'uint16_t':
             bytes = [chr(val&0xFF), chr((val&0xFF00)>>8)]
-        elif int_type == 'int32':
+        elif int_type == 'int32_t':
             bytes = [chr((val&0xFF)),
                      chr((val&0xFF00) >> 8),
                      chr((val&0xFF0000) >> 16),
@@ -309,21 +323,27 @@ class USB_Device:
         Arguments:
           bytes    = the bytes to convert
           int_type = the integer type specifier
-                     'uint8'  = unsigned 8 bit integer
-                     'uint16' = unsigned 16 bit integer
-                     'int32'  = signed 32 bit integer
+                     'uint8_t'  = unsigned 8 bit integer
+                     'uint16_t' = unsigned 16 bit integer
+                     'int32_t'  = signed 32 bit integer
         
         Return: the integer value
         """
         int_type = int_type.lower()
-        if int_type == 'uint8':
+        if int_type == 'uint8_t':
             # This is unsigned 8 bit integer
             val = ord(bytes[0])
-        elif int_type == 'uint16':
-            # This is unsgned 16 bit integer
+        elif int_type == 'uint16_t':
+            # This is unsigned 16 bit integer
             val = ord(bytes[0]) 
             val += ord(bytes[1]) << 8
-        elif int_type == 'int32':
+        elif int_type == 'uint32_t':
+            # This is unsigned 32 bit integer
+            val = ord(bytes[0]) 
+            val += ord(bytes[1]) << 8
+            val += ord(bytes[2]) << 16
+            val += ord(bytes[3]) << 24
+        elif int_type == 'int32_t':
             # This is signed 32 bit integer
             val = ord(bytes[0]) 
             val += ord(bytes[1]) << 8
@@ -336,27 +356,71 @@ class USB_Device:
             raise ValueError, "unknown int_type %s"%(int_type,)
         return val
 
-    def __write_to_buffer(cmd_id, data, data_type):
-        pass
+    def __write_to_buffer(self, cmd_id, outdata):
+        """
+        Write data list/array to output buffer.
+        """
 
-    def __read_from_buffer(data_type):
-        pass
+        # Check size of data array
+        N = 0 
+        for d, dtype in outdata:
+            N += DATA_SIZE_DICT[dtype]
 
-    def usb_cmd(self,cmd_id,data,data_type):
+        if N > MAX_DATAARRAY_SIZE:
+            raise ValueError, 'data array larger than max length'
 
-        # Send command + value and receive data
+        # Empty output buffer
+        for i in range(USB_BUFFER_OUT_SIZE):
+            self.output_buffer[i] = chr(0x00)
+
+        # Add command id and data array lenght to output buffer
         self.output_buffer[0] = chr(cmd_id%0x100)
+        self.output_buffer[1] = self.__int_to_bytes(N,'uint8_t')[0]
 
-        val_bytes = self.__int_to_bytes(val,val_type)
-        for i,byte in enumerate(val_bytes):
-            self.output_buffer[i+2] = byte
+        # Add data array to output buffer
+        p = 2
+        for d, dtype in outdata:
+            bytes = self.__int_to_bytes(d,dtype)
+            for b in bytes:
+                self.output_buffer[p] = b
+                p += 1
+
+    def __extract_input_data(self, data, intypes):
+        """
+        Read data from input buffer.
+        """
+        cmd_id = self.__bytes_to_int(data[0],'uint8_t')
+        length = self.__bytes_to_int(data[1],'uint8_t')
+
+        N = 0 
+        for dtype in intypes:
+            N += DATA_SIZE_DICT[dtype]
+
+        if length != N:
+            raise IOError, 'returned bytes not equal to bytes specified by intypes'
+
+        p = 2 
+        val_list = []
+        for dtype in intypes:
+            if dtype in ('int8_t', 'uint8_t'):
+                val = self.__bytes_to_int(data[p:p+1],'uint8_t')
+                p += 1
+            elif dtype in ('int16_t', 'uint16_t'):
+                val = self.__bytes_to_int(data[p:p+2],'uint16_t')
+                p += 2
+            elif dtype in ('int32_t', 'uint32_t'):
+                val = self.__bytes_to_int(data[p:p+4],'uint32_t')
+                p += 4
+            else:
+                raise ValueError, 'unknown dtype %s'%(dtype,)
+            val_list.append(val)
+        return val_list
+
+    def usb_cmd(self,cmd_id,outdata,intypes):
+        self.__write_to_buffer(cmd_id,outdata)
         data = self.__send_and_receive()
-
-        # Extract returned data
-        cmd_id_received, ctl_byte = self.__get_usb_header(data)
-        check_cmd_id(cmd_id, cmd_id_received)
-        val = self.__get_usb_value(ctl_byte, data)
-        return val        
+        val_list = self.__extract_input_data(data,intypes)
+        return val_list        
 
     def usb_set_cmd(self,cmd_id,val,io_update=True):
         """
@@ -540,11 +604,11 @@ if __name__ == '__main__':
     dev.print_values()
     print 
 
-    if 1:
+    if 0:
         N = 500
         t0 = time.time()
         for i in range(0,N):
-            val = dev.usb_get_cmd(USB_CMD_TEST)
+            val = dev.usb_get_cmd(USB_CMD_TEST8)
         t1 = time.time()
         dt_total = t1 - t0
         dt = dt_total/float(N)
@@ -554,10 +618,17 @@ if __name__ == '__main__':
         print 'rate:', rate
         print
 
-    if 1:
+    if 0:
         for i in range(0,10):
-            val = dev.usb_get_cmd(USB_CMD_TEST)
+            val = dev.usb_get_cmd(USB_CMD_TEST8)
             print val
+
+    val_list = dev.usb_cmd(USB_CMD_TEST8,[(1,'uint8_t')],['uint8_t']*60)
+    print val_list
+    val_list = dev.usb_cmd(USB_CMD_TEST16,[],['uint16_t']*30)
+    print val_list
+    val_list = dev.usb_cmd(USB_CMD_TEST32,[],['uint32_t']*15)
+    print val_list
 
     dev.close()
 

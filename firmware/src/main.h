@@ -16,7 +16,9 @@
 
 /* Macros: */
 /* USB Commands */
-#define USB_CMD_TEST 0
+#define USB_CMD_TEST8 0
+#define USB_CMD_TEST16 1
+#define USB_CMD_TEST32 2
 #define USB_CMD_AVR_RESET       200
 #define USB_CMD_AVR_DFU_MODE    201
 
@@ -71,7 +73,7 @@ enum USB_StatusCodes_t
 };
 
 /* Global Variables: */
-uint16_t count=0;
+uint32_t count=0;
 USBPacketOutWrapper_t   USBPacketOut;
 USBPacketInWrapper_t    USBPacketIn;
 
