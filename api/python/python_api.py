@@ -56,6 +56,8 @@ USB_DATA_PACKET_SIZE = 30
 USB_CMD_TEST8 = 0
 USB_CMD_TEST16 = 1
 USB_CMD_TEST32 = 2
+USB_CMD_TEST_SET = 3
+USB_CMD_TEST_GET = 4
 USB_CMD_AVR_RESET = 200
 USB_CMD_AVR_DFU_MODE = 201
 
@@ -203,10 +205,7 @@ class USB_Device:
             if val < 0 :
                 raise IOError, "error sending usb output"
 
-            # DEBUG: sometimes get no data here. I Reduced the timeout to 200 
-            # which makes problem less apparent, but doesn't get rod out it. 
             data = self.__read_input(timeout=in_timeout)
-
             if data == None:
                 debug_print('usb SR: fail', comma=False) 
                 sys.stdout.flush()
@@ -246,47 +245,10 @@ class USB_Device:
         buf = self.input_buffer
         try:
             val = usb.bulk_read(self.libusb_handle, USB_BULKIN_EP_ADDRESS, buf, timeout)
-            #print 'read', [ord(b) for b in buf]
             data = [x for x in buf]
         except usb.USBNoDataAvailableError:
             data = None
         return data
-
-    def __get_usb_header(self,data):
-        """
-        Get header from returned usb data. Header consists of the command id and 
-        the control byte. 
-        
-        Arguments:
-          data = the returned usb data
-          
-        Return: (cmd_id, ctl_byte)
-                 cmd_id   = the usb header command id
-                 ctl_byte = the usb header control byte 
-        """
-        cmd_id = self.__bytes_to_int(data[0:1],'uint8_t')
-        #ctl_byte = self.__bytes_to_int(data[1:2],'uint8_t')
-        ctl_byte = 0
-        return cmd_id, ctl_byte
-        
-    def __get_usb_value(self,ctl_byte,data):
-        """
-        Get the value sent from usb data.
-        
-        Arguments:
-          ctl_byte = the returned control byte
-          data     = the returned data buffer
-          
-        Return: the value return by the usb device.
-        """
-        len = self.__bytes_to_int(data[1], 'uint8_t')
-        val_list = []
-        for i in range(0,2*len,2):
-            val = self.__bytes_to_int(data[2+i:2+i+2],'uint16_t')
-            val_list.append(val)
-        return val_list
-            
-        #return self.__bytes_to_int(data[1:], 'uint8_t')
         
     def __int_to_bytes(self,val,int_type):
         """
@@ -302,11 +264,11 @@ class USB_Device:
         Return: the integer converted to bytes.
         """
         int_type = int_type.lower()
-        if int_type == 'uint8_t':
+        if int_type in ('int8_t', 'uint8_t'):
             bytes = [chr(val&0xFF)]
-        elif int_type == 'uint16_t':
+        elif int_type in ('int16_t', 'uint16_t'):
             bytes = [chr(val&0xFF), chr((val&0xFF00)>>8)]
-        elif int_type == 'int32_t':
+        elif int_type in ('int32_t', 'uint32_t'):
             bytes = [chr((val&0xFF)),
                      chr((val&0xFF00) >> 8),
                      chr((val&0xFF0000) >> 16),
@@ -403,13 +365,13 @@ class USB_Device:
         val_list = []
         for dtype in intypes:
             if dtype in ('int8_t', 'uint8_t'):
-                val = self.__bytes_to_int(data[p:p+1],'uint8_t')
+                val = self.__bytes_to_int(data[p:p+1],dtype)
                 p += 1
             elif dtype in ('int16_t', 'uint16_t'):
-                val = self.__bytes_to_int(data[p:p+2],'uint16_t')
+                val = self.__bytes_to_int(data[p:p+2],dtype)
                 p += 2
             elif dtype in ('int32_t', 'uint32_t'):
-                val = self.__bytes_to_int(data[p:p+4],'uint32_t')
+                val = self.__bytes_to_int(data[p:p+4],dtype)
                 p += 4
             else:
                 raise ValueError, 'unknown dtype %s'%(dtype,)
@@ -417,67 +379,14 @@ class USB_Device:
         return val_list
 
     def usb_cmd(self,cmd_id,outdata,intypes):
+        """
+        Generic usb command.
+        """
         self.__write_to_buffer(cmd_id,outdata)
         data = self.__send_and_receive()
         val_list = self.__extract_input_data(data,intypes)
         return val_list        
 
-    def usb_set_cmd(self,cmd_id,val,io_update=True):
-        """
-        Generic usb set command. Sends set command w/ value to device
-        and extracts the value returned
-
-        Arguments:
-          cmd_id = the integer command id for the usb command
-          val    = the value to send to the usb device.
-          
-        Keywords:
-          io_update = True or False. Determines whether or not thr 
-                      change in value will have an immediate effect. 
-                      The default value is True.
-
-        """
-        # Get value type from CMD_ID and convert to CTL_VAL
-        val_type = SET_TYPE_DICT[cmd_id]
-    
-        # Send command + value and receive data
-        self.output_buffer[0] = chr(cmd_id%0x100)
-        if io_update == True:
-            ctl_val = USB_CTL_UPDATE
-        elif io_update == False:
-            ctl_val = USB_CTL_NO_UPDATE
-        else:
-            raise ValueError, "io_update must be True or False"
-        self.output_buffer[1] = chr(ctl_val%0x100)
-        val_bytes = self.__int_to_bytes(val,val_type)
-        for i,byte in enumerate(val_bytes):
-            self.output_buffer[i+2] = byte
-        data = self.__send_and_receive()
-
-        # Extract returned data
-        cmd_id_received, ctl_byte = self.__get_usb_header(data)
-        check_cmd_id(cmd_id, cmd_id_received)
-        val = self.__get_usb_value(ctl_byte, data)
-        return val        
-
-    def usb_get_cmd(self,cmd_id):
-        """
-        Generic usb get command. Sends usb get command to device 
-        w/ specified command id and extracts the value returned.
-
-        Arguments:
-          cmd_id = the integer command id for usb command
-          
-        Return: the value returned fromt the usb device.
-        """
-        # Send command and receive data
-        self.output_buffer[0] = chr(cmd_id%0x100)
-        data = self.__send_and_receive()
-        # Extract returned data
-        cmd_id_received, ctl_byte = self.__get_usb_header(data)
-        check_cmd_id(cmd_id, cmd_id_received)
-        val = self.__get_usb_value(ctl_byte, data)
-        return val
 
     def get_serial_number(self):
         """
@@ -608,7 +517,7 @@ if __name__ == '__main__':
         N = 500
         t0 = time.time()
         for i in range(0,N):
-            val = dev.usb_get_cmd(USB_CMD_TEST8)
+            val = dev.usb_cmd(USB_CMD_TEST8,[],['uint8_t']*60)
         t1 = time.time()
         dt_total = t1 - t0
         dt = dt_total/float(N)
@@ -620,15 +529,29 @@ if __name__ == '__main__':
 
     if 0:
         for i in range(0,10):
-            val = dev.usb_get_cmd(USB_CMD_TEST8)
+            val = dev.usb_cmd(USB_CMD_TEST8,[],['uint8_t']*60)
             print val
 
-    val_list = dev.usb_cmd(USB_CMD_TEST8,[(1,'uint8_t')],['uint8_t']*60)
-    print val_list
-    val_list = dev.usb_cmd(USB_CMD_TEST16,[],['uint16_t']*30)
-    print val_list
-    val_list = dev.usb_cmd(USB_CMD_TEST32,[],['uint32_t']*15)
-    print val_list
+    if 0:
+        val_list = dev.usb_cmd(USB_CMD_TEST8,[(1,'uint8_t')],['uint8_t']*60)
+        print val_list
+        val_list = dev.usb_cmd(USB_CMD_TEST16,[],['uint16_t']*30)
+        print val_list
+        val_list = dev.usb_cmd(USB_CMD_TEST32,[],['uint32_t']*15)
+        print val_list
+
+    if 1:
+        for i in range(0,500):
+            type_list = ['uint8_t', 'uint16_t','uint32_t']
+            rval_list = dev.usb_cmd(USB_CMD_TEST_GET,[],type_list)
+            print i
+            print rval_list
+            send_list = [(x+100,y) for x,y in zip(rval_list,type_list)]
+            rval_list = dev.usb_cmd(USB_CMD_TEST_SET,send_list,[])
+            rval_list = dev.usb_cmd(USB_CMD_TEST_GET,[],type_list)
+            print rval_list
+            print
+
 
     dev.close()
 

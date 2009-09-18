@@ -178,6 +178,21 @@ TASK(USB_ProcessPacket)
                             USBIn_SetData(&val,sizeof(uint32_t));
                         }
                         break;
+
+                    case USB_CMD_TEST_SET:
+                        USBOut_ResetData();
+                        USBOut_GetData(&SysState.Val8,sizeof(uint8_t));
+                        USBOut_GetData(&SysState.Val16,sizeof(uint16_t));
+                        USBOut_GetData(&SysState.Val32,sizeof(uint32_t));
+                        USBIn_ResetData();
+                        break;
+
+                    case USB_CMD_TEST_GET:
+                        USBIn_ResetData();
+                        USBIn_SetData(&SysState.Val8,sizeof(uint8_t));
+                        USBIn_SetData(&SysState.Val16,sizeof(uint16_t));
+                        USBIn_SetData(&SysState.Val32,sizeof(uint32_t));
+                        break;
                         
                     case USB_CMD_AVR_RESET:
                         USBPacket_Write();
@@ -210,13 +225,32 @@ static void USBIn_ResetData(void)
     return;
 }
 
-static void USBIn_SetData(void *data, size_t len) 
+static void USBOut_ResetData(void)
 {
-    memcpy((void *)(USBIn.Packet.Data.Buf + USBIn.Packet.Data.Len), data, len);
-    USBIn.Packet.Data.Len += len;
-    return;
+    USBOut.DataPos = 0;
 }
 
+static uint8_t USBIn_SetData(void *data, size_t len) 
+{
+    uint8_t rval = FAIL;
+    if (USBIn.Packet.Data.Len + len <= DATAARRAY_MAX_LEN) { 
+        memcpy((void *)(USBIn.Packet.Data.Buf + USBIn.Packet.Data.Len), data, len);
+        USBIn.Packet.Data.Len += len;
+        rval = PASS;
+    }
+    return rval;
+}
+
+static uint8_t USBOut_GetData(void *data, size_t len)
+{
+    uint8_t rval = FAIL;
+    if (USBOut.DataPos + len <= DATAARRAY_MAX_LEN) {
+        memcpy(data,(void *)(USBOut.Packet.Data.Buf + USBOut.DataPos), len);
+        USBOut.DataPos += len;
+        rval = PASS;
+    }
+    return rval;
+}
 
 static void USBPacket_Read(void)
 {
