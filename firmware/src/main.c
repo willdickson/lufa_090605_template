@@ -147,33 +147,35 @@ TASK(USB_ProcessPacket)
                 USBPacket_Read();
 
                 /* Return the same CommandID that was received */
-                USBPacketIn.CommandID = USBPacketOut.CommandID;
-
+                USBIn.Packet.CommandID = USBOut.Packet.CommandID;
 
                 /* Process USB packet */
-                switch (USBPacketOut.CommandID) {
+                switch (USBOut.Packet.CommandID) {
 
                     case USB_CMD_TEST8:
                         count += 1;
-                        USBPacketIn.DataPacket.Len = DATAARRAY_UINT8_SIZE;
-                        for (int j=0; j< DATAARRAY_UINT8_SIZE; j++) {
-                            USBPacketIn.DataPacket.Data.uint8[j] = (uint8_t)(count + j);
+                        USBIn_ResetData();
+                        for (int j=0; j< DATAARRAY_MAX_LEN; j++) {
+                            uint8_t val = (uint8_t)(count+j);
+                            USBIn_SetData(&val,sizeof(uint8_t));
                         }
                         break;
 
                     case USB_CMD_TEST16:
                         count += 1;
-                        USBPacketIn.DataPacket.Len = 2*DATAARRAY_UINT16_SIZE;
-                        for (int j=0; j< DATAARRAY_UINT16_SIZE; j++) {
-                            USBPacketIn.DataPacket.Data.uint16[j] = (uint16_t) (count + j);
+                        USBIn_ResetData();    
+                        for (int j=0; j< DATAARRAY_MAX_LEN/2; j++) {
+                            uint16_t val = (uint16_t)(count+j);
+                            USBIn_SetData(&val,sizeof(uint16_t));
                         }
                         break;
 
                     case USB_CMD_TEST32:
                         count += 1;
-                        USBPacketIn.DataPacket.Len = 4*DATAARRAY_UINT32_SIZE;
-                        for (int j=0; j< DATAARRAY_UINT32_SIZE; j++) {
-                            USBPacketIn.DataPacket.Data.uint32[j] = count + j;
+                        USBIn_ResetData();
+                        for (int j=0; j< DATAARRAY_MAX_LEN/4; j++) {
+                            uint32_t val = (uint32_t)(count+j);
+                            USBIn_SetData(&val,sizeof(uint32_t));
                         }
                         break;
                         
@@ -202,15 +204,29 @@ TASK(USB_ProcessPacket)
     }
 }
 
+static void USBIn_ResetData(void)
+{
+   USBIn.Packet.Data.Len = 0;
+    return;
+}
+
+static void USBIn_SetData(void *data, size_t len) 
+{
+    memcpy((void *)(USBIn.Packet.Data.Buf + USBIn.Packet.Data.Len), data, len);
+    USBIn.Packet.Data.Len += len;
+    return;
+}
+
+
 static void USBPacket_Read(void)
 {
-    uint8_t* USBPacketOutPtr = (uint8_t*)&USBPacketOut;
+    uint8_t* USBPacketOutPtr = (uint8_t*)&USBOut.Packet;
 
     /* Select the Data Out endpoint */
     Endpoint_SelectEndpoint(OUT_EPNUM);
 
     /* Read in USB packet header */
-    Endpoint_Read_Stream_LE(USBPacketOutPtr, sizeof(USBPacketOut));
+    Endpoint_Read_Stream_LE(USBPacketOutPtr, sizeof(USBOut.Packet));
 
     /* Finalize the stream transfer to send the last packet */
     Endpoint_ClearOUT();
@@ -218,7 +234,7 @@ static void USBPacket_Read(void)
 
 static void USBPacket_Write(void)
 {
-    uint8_t* USBPacketInPtr = (uint8_t*)&USBPacketIn;
+    uint8_t* USBPacketInPtr = (uint8_t*)&USBIn.Packet;
 
     /* Select the Data In endpoint */
     Endpoint_SelectEndpoint(IN_EPNUM);
@@ -227,15 +243,7 @@ static void USBPacket_Write(void)
     while (!(Endpoint_IsReadWriteAllowed() && Endpoint_IsINReady()));
 
     /* Write the return data to the endpoint */
-    Endpoint_Write_Stream_LE(USBPacketInPtr, sizeof(USBPacketIn));
-
-    /*
-    uint8_t *ptr;
-    ptr = (uint8_t *) USBPacketInPtr;
-    for (uint8_t i=0; i<62; i++) {
-        Endpoint_Write_Byte(*(ptr+i));
-    }
-    */
+    Endpoint_Write_Stream_LE(USBPacketInPtr, sizeof(USBIn.Packet));
 
     /* Finalize the stream transfer to send the last packet */
     Endpoint_ClearIN();

@@ -27,43 +27,32 @@
 #define AVR_IS_WDT_RESET()  ((MCUSR&(1<<WDRF)) ? 1:0)
 #define DFU_BOOT_KEY_VAL 0xAA55AA55
 
-#define DATAARRAY_INT8_SIZE 60
-#define DATAARRAY_UINT8_SIZE 60
-#define DATAARRAY_INT16_SIZE 30
-#define DATAARRAY_UINT16_SIZE 30
-#define DATAARRAY_INT32_SIZE 15 
-#define DATAARRAY_UINT32_SIZE 15
+#define DATAARRAY_MAX_LEN 60 
 
-typedef union 
-{
-    int8_t int8[DATAARRAY_INT8_SIZE];
-    uint8_t uint8[DATAARRAY_UINT8_SIZE];
-    int16_t int16[DATAARRAY_INT16_SIZE];
-    uint16_t uint16[DATAARRAY_UINT16_SIZE];
-    int32_t int32[DATAARRAY_INT32_SIZE];
-    uint32_t uint32[DATAARRAY_UINT32_SIZE];
-} DataArray_t;
-
-typedef struct
-{
+typedef struct {
     uint8_t Len;
-    DataArray_t Data;
-} DataPacket_t;
+    char Buf[DATAARRAY_MAX_LEN];
+} Data_t;
 
-typedef struct
-{
+typedef struct {
     uint8_t CommandID;
-    DataPacket_t DataPacket;
-} USBPacketOutWrapper_t;
+    Data_t Data;
+} USBPacketOut_t;
 
-typedef struct
-{
+typedef struct {
     uint8_t CommandID;
-    DataPacket_t DataPacket;
-} USBPacketInWrapper_t;
+    Data_t Data;
+} USBPacketIn_t;
 
-/* Enums: */
-/** Enum for the possible status codes for passing to the UpdateStatus() function. */
+typedef struct {
+    USBPacketIn_t Packet;
+} USBIn_t;
+
+typedef struct {
+    USBPacketOut_t Packet;
+    uint8_t Pos;
+} USBOut_t;
+
 enum USB_StatusCodes_t
 {
     Status_USBNotReady          = 0, /**< USB is not ready (disconnected from a USB host) */
@@ -74,8 +63,8 @@ enum USB_StatusCodes_t
 
 /* Global Variables: */
 uint32_t count=0;
-USBPacketOutWrapper_t   USBPacketOut;
-USBPacketInWrapper_t    USBPacketIn;
+USBIn_t USBIn;
+USBOut_t USBOut;
 
 /* Task Definitions: */
 TASK(USB_ProcessPacket);
@@ -94,6 +83,10 @@ static void USBPacket_Write(void);
 static void IO_Init(void);
 static void IO_Disconnect(void);
 static void REG_16bit_Write(volatile uint16_t *reg, volatile uint16_t val);
+static void USBIn_SetData(void *data, size_t len); 
+static void USBOut_GetData(void *data, uint8_t type);
+static void USBIn_ResetData(void);
+static void USBOut_ResetData(void);
 #endif
 
 #endif
