@@ -62,9 +62,25 @@ USB_CMD_AVR_RESET = 200
 USB_CMD_AVR_DFU_MODE = 201
 
 # Maximum data array lenghts for given types
-MAX_DATAARRAY_SIZE = 60
+DATAARRAY_MAX_SIZE = 60
 
-DATA_SIZE_DICT = {
+# C data types
+c_int8 = ctypes.c_int8
+c_int16 = ctypes.c_int16
+c_int32 = ctypes.c_int32
+c_uint8 = ctypes.c_uint8
+c_uint16 = ctypes.c_uint16
+c_uint32 = ctypes.c_uint32
+c_float = ctypes.c_float
+c_double = ctypes.c_double
+c_char = ctypes.c_char
+
+# Useful ctypes functions
+sizeof = ctypes.sizeof
+cast = ctypes.cast
+POINTER = ctypes.POINTER
+
+BYTES_PER_TYPE= {
         'int8_t'   : 1,
         'uint8_t'  : 1,
         'int16_t'  : 2,
@@ -144,7 +160,6 @@ class USB_Device:
             if not found:
                 raise RuntimeError("Cannot find device w/ serial number %s."%(serial_number,))
 
-
         self.interface_nr = 0
         if hasattr(usb,'get_driver_np'):
             # non-portable libusb function available
@@ -152,7 +167,6 @@ class USB_Device:
             if name != '':
                 debug("attached to kernel driver '%s', detaching."%name )
                 usb.detach_kernel_driver_np(self.libusb_handle,self.interface_nr)
-
 
         if dev.descriptor.bNumConfigurations > 1:
             debug("WARNING: more than one configuration, choosing first")
@@ -244,8 +258,8 @@ class USB_Device:
         """
         buf = self.input_buffer
         try:
-            val = usb.bulk_read(self.libusb_handle, USB_BULKIN_EP_ADDRESS, buf, timeout)
-            data = [x for x in buf]
+            val = usb.bulk_read(self.libusb_handle, USB_BULKIN_EP_ADDRESS, self.input_buffer, timeout)
+            data = [x for x in self.input_buffer]
         except usb.USBNoDataAvailableError:
             data = None
         return data
@@ -295,16 +309,22 @@ class USB_Device:
         if int_type == 'uint8_t':
             # This is unsigned 8 bit integer
             val = ord(bytes[0])
+            #y = cast(self.input_buffer[2],POINTER(c_uint8)).contents.value
+            #print y
         elif int_type == 'uint16_t':
             # This is unsigned 16 bit integer
             val = ord(bytes[0]) 
             val += ord(bytes[1]) << 8
+            #y = cast(self.input_buffer[2:4],POINTER(c_uint16)).contents.value
+            #print y
         elif int_type == 'uint32_t':
             # This is unsigned 32 bit integer
             val = ord(bytes[0]) 
             val += ord(bytes[1]) << 8
             val += ord(bytes[2]) << 16
             val += ord(bytes[3]) << 24
+            #y = cast(self.input_buffer[2:6],POINTER(c_uint32)).contents.value
+            #print y
         elif int_type == 'int32_t':
             # This is signed 32 bit integer
             val = ord(bytes[0]) 
@@ -326,9 +346,9 @@ class USB_Device:
         # Check size of data array
         N = 0 
         for d, dtype in outdata:
-            N += DATA_SIZE_DICT[dtype]
+            N += BYTES_PER_TYPE[dtype]
 
-        if N > MAX_DATAARRAY_SIZE:
+        if N > DATAARRAY_MAX_SIZE:
             raise ValueError, 'data array larger than max length'
 
         # Empty output buffer
@@ -356,7 +376,7 @@ class USB_Device:
 
         N = 0 
         for dtype in intypes:
-            N += DATA_SIZE_DICT[dtype]
+            N += BYTES_PER_TYPE[dtype]
 
         if length != N:
             raise IOError, 'returned bytes not equal to bytes specified by intypes'
@@ -377,6 +397,21 @@ class USB_Device:
                 raise ValueError, 'unknown dtype %s'%(dtype,)
             val_list.append(val)
         return val_list
+
+    def __read_from_buffer(self,input_ctypes):
+        val_list = []
+        pos = 0
+        for ctype in input_ctypes:
+            bytes = sizeof(ctype)
+            val = cast(self.input_buffer[pos:pos+bytes],POINTER(ctype)).contents.value
+            pos += bytes
+            val_list.append(val)
+        return val_list
+
+    #def __write_to_buffer(self,output_data):
+    #    for val, ctype in output_data:
+    #        pass
+
 
     def usb_cmd(self,cmd_id,outdata,intypes):
         """
@@ -532,15 +567,19 @@ if __name__ == '__main__':
             val = dev.usb_cmd(USB_CMD_TEST8,[],['uint8_t']*60)
             print val
 
-    if 0:
+    if 1:
         val_list = dev.usb_cmd(USB_CMD_TEST8,[(1,'uint8_t')],['uint8_t']*60)
         print val_list
+        print
         val_list = dev.usb_cmd(USB_CMD_TEST16,[],['uint16_t']*30)
         print val_list
+        print
         val_list = dev.usb_cmd(USB_CMD_TEST32,[],['uint32_t']*15)
         print val_list
+        print
 
-    if 1:
+
+    if 0:
         for i in range(0,500):
             type_list = ['uint8_t', 'uint16_t','uint32_t']
             rval_list = dev.usb_cmd(USB_CMD_TEST_GET,[],type_list)
