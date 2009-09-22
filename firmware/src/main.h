@@ -21,6 +21,8 @@
 #define USB_CMD_TEST32 2
 #define USB_CMD_TEST_SET 3
 #define USB_CMD_TEST_GET 4
+#define USB_CMD_STRUCT_SET 5
+#define USB_CMD_STRUCT_GET 6
 #define USB_CMD_AVR_RESET       200
 #define USB_CMD_AVR_DFU_MODE    201
 
@@ -50,13 +52,11 @@ typedef struct {
 } OutPacket_t;
 
 typedef struct {
-    //char Buf[IN_EPSIZE];
     InPacket_t Packet;
     uint8_t Pos;
 } USBIn_t;
 
 typedef struct {
-    //char Buf[OUT_EPSIZE];
     OutPacket_t Packet;
     uint8_t Pos;
 } USBOut_t;

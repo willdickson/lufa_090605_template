@@ -53,13 +53,15 @@ USB_BUFFER_IN_SIZE = 64
 USB_DATA_PACKET_SIZE = 30
 
 # USB Command IDs
-USB_CMD_TEST8 = 0
-USB_CMD_TEST16 = 1
-USB_CMD_TEST32 = 2
-USB_CMD_TEST_SET = 3
-USB_CMD_TEST_GET = 4
-USB_CMD_AVR_RESET = 200
-USB_CMD_AVR_DFU_MODE = 201
+USB_CMD_TEST8 = ctypes.c_uint8(0)
+USB_CMD_TEST16 = ctypes.c_uint8(1)
+USB_CMD_TEST32 = ctypes.c_uint8(2)
+USB_CMD_TEST_SET = ctypes.c_uint8(3)
+USB_CMD_TEST_GET = ctypes.c_uint8(4)
+USB_CMD_STRUCT_SET = ctypes.c_uint8(5)
+USB_CMD_STRUCT_GET = ctypes.c_uint8(6)
+USB_CMD_AVR_RESET = ctypes.c_uint8(200)
+USB_CMD_AVR_DFU_MODE = ctypes.c_uint8(201)
 
 def debug(val):
     if DEBUG==True:
@@ -214,14 +216,12 @@ class USB_Device:
         return 
         
     def __val_to_buffer(self,val):
-        print val
         buf_ptr = ctypes.byref(self.output_buffer,self.output_buffer_pos)
         val_ptr = ctypes.pointer(val)
         sz = ctypes.sizeof(val)
         if self.output_buffer_pos + sz >  USB_BUFFER_OUT_SIZE:
-            raise ValueError, 'output_buffer_pos + sz greater than maximum data array size'
+            raise ValueError, 'output_buffer_pos + sz greater than USB_BUFFER_OUT_SIZE'
         ctypes.memmove(buf_ptr,val_ptr,sz)
-        print ord(self.output_buffer[0])
         self.output_buffer_pos += sz
         return 
 
@@ -230,7 +230,7 @@ class USB_Device:
         val_ptr = ctypes.pointer(val)
         sz = ctypes.sizeof(val)
         if self.input_buffer_pos + sz > USB_BUFFER_IN_SIZE:
-            raise ValueError, 'input_buffer_pos + sz greater than maximum data array size'
+            raise ValueError, 'input_buffer_pos + sz greater than USB_BUFFER_IN_SIZE'
         ctypes.memmove(val_ptr,buf_ptr,sz)
         self.input_buffer_pos += sz
 
@@ -248,8 +248,8 @@ class USB_Device:
             raise ValueError, 'data array larger than max length'
 
         # Set output buffer data to all zeros 
-        #for i in range(USB_BUFFER_OUT_SIZE):
-        #    self.output_buffer[i] = chr(0x00)
+        for i in range(USB_BUFFER_OUT_SIZE):
+            self.output_buffer[i] = chr(0x00)
 
         self.output_buffer_pos = 0
 
@@ -362,7 +362,7 @@ class USB_Device:
         Return None.
         """
         print 
-        print 'device information'
+        print ' device information'
         print ' '+ '-'*35
         print '   manufacturer:', self.get_manufacturer()
         print '   product:', self.get_product()
@@ -379,23 +379,87 @@ if __name__ == '__main__':
     print 
 
 
-    if 1:
-        outdata = [ctypes.c_uint8(USB_CMD_TEST8)]
-        intypes = [ctypes.c_uint8] #+ [ctypes.c_uint8]*60
+    if 0:
+        outdata = [USB_CMD_TEST8]
+        intypes = [ctypes.c_uint8] + [ctypes.c_uint8]*60
         val_list = dev.usb_cmd(outdata,intypes)
         print val_list
         print
 
-        outdata = [ctypes.c_uint8(USB_CMD_TEST16)]
-        intypes = [ctypes.c_uint8] #+ [ctypes.c_uint16]*30
+        outdata = [USB_CMD_TEST16]
+        intypes = [ctypes.c_uint8] + [ctypes.c_uint16]*30
         val_list = dev.usb_cmd(outdata,intypes)
         print val_list
         print
-        outdata = [ctypes.c_uint8(USB_CMD_TEST32)]
-        intypes = [ctypes.c_uint8] #+ [ctypes.c_uint32]*15
+        outdata = [USB_CMD_TEST32]
+        intypes = [ctypes.c_uint8] + [ctypes.c_uint32]*15
         val_list = dev.usb_cmd(outdata,intypes)
         print val_list
         print
+
+    if 0:
+        outdata = [USB_CMD_TEST_GET]
+        intypes = [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint32]
+        val_list = dev.usb_cmd(outdata,intypes)
+        print val_list
+        print 
+
+        outdata = [USB_CMD_TEST_SET, ctypes.c_uint8(10), ctypes.c_uint16(20), ctypes.c_uint8(30)]
+        intypes = [ctypes.c_uint8]
+        val_list = dev.usb_cmd(outdata,intypes)
+        print val_list
+        print 
+
+        outdata = [USB_CMD_TEST_GET]
+        intypes = [ctypes.c_uint8, ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint32]
+        val_list = dev.usb_cmd(outdata,intypes)
+        print val_list
+        print 
+    if 1:
+        class SysState_t(ctypes.Structure):
+            _fields_ = [
+                    ('Val8', ctypes.c_uint8),
+                    ('Val16', ctypes.c_uint16),
+                    ('Val32', ctypes.c_uint32),
+                    ]
+
+        print 'Getting current SysState structure'
+        outdata = [USB_CMD_STRUCT_GET]
+        intypes = [ctypes.c_uint8, SysState_t]
+        val_list = dev.usb_cmd(outdata,intypes)
+        cmd_id = val_list[0]
+        SysState = val_list[1]
+        print 'cmd_id:', cmd_id
+        print 'SysState:', SysState.Val8, SysState.Val16, SysState.Val32
+        print 
+
+        print 'Setting SysState Structure to new values'
+        SysState.Val8 += 5
+        SysState.Val16 += 5
+        SysState.Val32 += 5
+        outdata = [USB_CMD_STRUCT_SET, SysState]
+        intypes = [ctypes.c_uint8]
+        val_list = dev.usb_cmd(outdata,intypes)
+        cmd_id = val_list[0]
+        print 'cmd_id:', cmd_id
+        print 'SysState:', SysState.Val8, SysState.Val16, SysState.Val32
+        print
+
+        print 'Getting current SysState structure'
+        outdata = [USB_CMD_STRUCT_GET]
+        intypes = [ctypes.c_uint8, SysState_t]
+        val_list = dev.usb_cmd(outdata,intypes)
+        cmd_id = val_list[0]
+        SysState = val_list[1]
+        print 'cmd_id:', cmd_id
+        print 'SysState:', SysState.Val8, SysState.Val16, SysState.Val32
+        print 
+
+
+
+
+
+
 
     dev.close()
 

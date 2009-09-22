@@ -153,7 +153,7 @@ TASK(USB_ProcessPacket)
                 USBIn_ResetData();
 
                 /* Get command ID from bulkout buffer */
-                commandID = USBOut_GetData(&commandID,sizeof(uint8_t));
+                USBOut_GetData(&commandID,sizeof(uint8_t));
 
                 /* Return same command ID in bulkin buffer */
                 USBIn_SetData(&commandID,sizeof(uint8_t));
@@ -195,6 +195,14 @@ TASK(USB_ProcessPacket)
                         USBIn_SetData(&SysState.Val8,sizeof(uint8_t));
                         USBIn_SetData(&SysState.Val16,sizeof(uint16_t));
                         USBIn_SetData(&SysState.Val32,sizeof(uint32_t));
+                        break;
+
+                    case USB_CMD_STRUCT_SET:
+                        USBOut_GetData(&SysState, sizeof(SysState_t));
+                        break;
+
+                    case USB_CMD_STRUCT_GET:
+                        USBIn_SetData(&SysState, sizeof(SysState_t));
                         break;
                         
                     case USB_CMD_AVR_RESET:
@@ -258,7 +266,7 @@ static uint8_t USBOut_GetData(void *data, size_t len)
 
 static void USBPacket_Read(void)
 {
-    uint8_t* USBPacketOutPtr = (uint8_t*)USBOut.Packet.Buf;
+    uint8_t* USBPacketOutPtr = (uint8_t*)&USBOut.Packet;
 
     /* Select the Data Out endpoint */
     Endpoint_SelectEndpoint(OUT_EPNUM);
@@ -272,7 +280,7 @@ static void USBPacket_Read(void)
 
 static void USBPacket_Write(void)
 {
-    uint8_t* USBPacketInPtr = (uint8_t*)USBIn.Packet.Buf;
+    uint8_t* USBPacketInPtr = (uint8_t*)&USBIn.Packet;
 
     /* Select the Data In endpoint */
     Endpoint_SelectEndpoint(IN_EPNUM);
