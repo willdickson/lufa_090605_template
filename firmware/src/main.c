@@ -128,6 +128,8 @@ void UpdateStatus(uint8_t CurrentStatus)
 
 TASK(USB_ProcessPacket)
 {
+    uint8_t commandID;
+
     /* Check if the USB System is connected to a Host */
     if (USB_IsConnected) {
 
@@ -146,16 +148,22 @@ TASK(USB_ProcessPacket)
                 /* Read USB packet from the host */
                 USBPacket_Read();
 
-                /* Return the same CommandID that was received */
-                USBIn.Packet.CommandID = USBOut.Packet.CommandID;
+                /* Reset buffer for reading and writing */
+                USBOut_ResetData();
+                USBIn_ResetData();
+
+                /* Get command ID from bulkout buffer */
+                commandID = USBOut_GetData(&commandID,sizeof(uint8_t));
+
+                /* Return same command ID in bulkin buffer */
+                USBIn_SetData(&commandID,sizeof(uint8_t));
 
                 /* Process USB packet */
-                switch (USBOut.Packet.CommandID) {
+                switch (commandID) {
 
                     case USB_CMD_TEST8:
                         count += 1;
-                        USBIn_ResetData();
-                        for (int j=0; j< DATAARRAY_MAX_LEN; j++) {
+                        for (int j=0; j< 60; j++) {
                             uint8_t val = (uint8_t)(count+j);
                             USBIn_SetData(&val,sizeof(uint8_t));
                         }
@@ -163,8 +171,7 @@ TASK(USB_ProcessPacket)
 
                     case USB_CMD_TEST16:
                         count += 1;
-                        USBIn_ResetData();    
-                        for (int j=0; j< DATAARRAY_MAX_LEN/2; j++) {
+                        for (int j=0; j< 30; j++) {
                             uint16_t val = (uint16_t)(count+j);
                             USBIn_SetData(&val,sizeof(uint16_t));
                         }
@@ -172,23 +179,19 @@ TASK(USB_ProcessPacket)
 
                     case USB_CMD_TEST32:
                         count += 1;
-                        USBIn_ResetData();
-                        for (int j=0; j< DATAARRAY_MAX_LEN/4; j++) {
+                        for (int j=0; j< 15; j++) {
                             uint32_t val = (uint32_t)(count+j);
                             USBIn_SetData(&val,sizeof(uint32_t));
                         }
                         break;
 
                     case USB_CMD_TEST_SET:
-                        USBOut_ResetData();
                         USBOut_GetData(&SysState.Val8,sizeof(uint8_t));
                         USBOut_GetData(&SysState.Val16,sizeof(uint16_t));
                         USBOut_GetData(&SysState.Val32,sizeof(uint32_t));
-                        USBIn_ResetData();
                         break;
 
                     case USB_CMD_TEST_GET:
-                        USBIn_ResetData();
                         USBIn_SetData(&SysState.Val8,sizeof(uint8_t));
                         USBIn_SetData(&SysState.Val16,sizeof(uint16_t));
                         USBIn_SetData(&SysState.Val32,sizeof(uint32_t));
@@ -221,21 +224,22 @@ TASK(USB_ProcessPacket)
 
 static void USBIn_ResetData(void)
 {
-   USBIn.Packet.Data.Len = 0;
+   USBIn.Pos = 0;
     return;
 }
 
 static void USBOut_ResetData(void)
 {
-    USBOut.DataPos = 0;
+    USBOut.Pos = 0;
+    return;
 }
 
 static uint8_t USBIn_SetData(void *data, size_t len) 
 {
     uint8_t rval = FAIL;
-    if (USBIn.Packet.Data.Len + len <= DATAARRAY_MAX_LEN) { 
-        memcpy((void *)(USBIn.Packet.Data.Buf + USBIn.Packet.Data.Len), data, len);
-        USBIn.Packet.Data.Len += len;
+    if (USBIn.Pos + len <= IN_EPSIZE) { 
+        memcpy((void *)(USBIn.Packet.Buf + USBIn.Pos), data, len);
+        USBIn.Pos += len;
         rval = PASS;
     }
     return rval;
@@ -244,9 +248,9 @@ static uint8_t USBIn_SetData(void *data, size_t len)
 static uint8_t USBOut_GetData(void *data, size_t len)
 {
     uint8_t rval = FAIL;
-    if (USBOut.DataPos + len <= DATAARRAY_MAX_LEN) {
-        memcpy(data,(void *)(USBOut.Packet.Data.Buf + USBOut.DataPos), len);
-        USBOut.DataPos += len;
+    if (USBOut.Pos + len <= OUT_EPSIZE) {
+        memcpy(data, (void *)(USBOut.Packet.Buf + USBOut.Pos), len);
+        USBOut.Pos += len;
         rval = PASS;
     }
     return rval;
@@ -254,7 +258,7 @@ static uint8_t USBOut_GetData(void *data, size_t len)
 
 static void USBPacket_Read(void)
 {
-    uint8_t* USBPacketOutPtr = (uint8_t*)&USBOut.Packet;
+    uint8_t* USBPacketOutPtr = (uint8_t*)USBOut.Packet.Buf;
 
     /* Select the Data Out endpoint */
     Endpoint_SelectEndpoint(OUT_EPNUM);
@@ -268,7 +272,7 @@ static void USBPacket_Read(void)
 
 static void USBPacket_Write(void)
 {
-    uint8_t* USBPacketInPtr = (uint8_t*)&USBIn.Packet;
+    uint8_t* USBPacketInPtr = (uint8_t*)USBIn.Packet.Buf;
 
     /* Select the Data In endpoint */
     Endpoint_SelectEndpoint(IN_EPNUM);

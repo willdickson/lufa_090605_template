@@ -214,12 +214,14 @@ class USB_Device:
         return 
         
     def __val_to_buffer(self,val):
+        print val
         buf_ptr = ctypes.byref(self.output_buffer,self.output_buffer_pos)
         val_ptr = ctypes.pointer(val)
         sz = ctypes.sizeof(val)
         if self.output_buffer_pos + sz >  USB_BUFFER_OUT_SIZE:
             raise ValueError, 'output_buffer_pos + sz greater than maximum data array size'
         ctypes.memmove(buf_ptr,val_ptr,sz)
+        print ord(self.output_buffer[0])
         self.output_buffer_pos += sz
         return 
 
@@ -246,8 +248,8 @@ class USB_Device:
             raise ValueError, 'data array larger than max length'
 
         # Set output buffer data to all zeros 
-        for i in range(USB_BUFFER_OUT_SIZE):
-            self.output_buffer[i] = chr(0x00)
+        #for i in range(USB_BUFFER_OUT_SIZE):
+        #    self.output_buffer[i] = chr(0x00)
 
         self.output_buffer_pos = 0
 
@@ -378,19 +380,19 @@ if __name__ == '__main__':
 
 
     if 1:
-        outdata = [ctypes.c_uint8(USB_CMD_TEST8), ctypes.c_uint8(1), ctypes.c_uint8(2)]
-        intypes = [ctypes.c_uint8, ctypes.c_uint8] + [ctypes.c_uint8]*60
+        outdata = [ctypes.c_uint8(USB_CMD_TEST8)]
+        intypes = [ctypes.c_uint8] #+ [ctypes.c_uint8]*60
         val_list = dev.usb_cmd(outdata,intypes)
         print val_list
         print
 
-        outdata = [ctypes.c_uint8(USB_CMD_TEST16), ctypes.c_uint8(0)]
-        intypes = [ctypes.c_uint8, ctypes.c_uint8] + [ctypes.c_uint16]*30
+        outdata = [ctypes.c_uint8(USB_CMD_TEST16)]
+        intypes = [ctypes.c_uint8] #+ [ctypes.c_uint16]*30
         val_list = dev.usb_cmd(outdata,intypes)
         print val_list
         print
-        outdata = [ctypes.c_uint8(USB_CMD_TEST32), ctypes.c_uint8(0)]
-        intypes = [ctypes.c_uint8, ctypes.c_uint8] + [ctypes.c_uint32]*15
+        outdata = [ctypes.c_uint8(USB_CMD_TEST32)]
+        intypes = [ctypes.c_uint8] #+ [ctypes.c_uint32]*15
         val_list = dev.usb_cmd(outdata,intypes)
         print val_list
         print

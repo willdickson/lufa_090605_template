@@ -29,7 +29,7 @@
 #define AVR_IS_WDT_RESET()  ((MCUSR&(1<<WDRF)) ? 1:0)
 #define DFU_BOOT_KEY_VAL 0xAA55AA55
 
-#define DATAARRAY_MAX_LEN 60 
+//#define DATAARRAY_MAX_LEN 60 
 #define PASS 0
 #define FAIL 1
 
@@ -41,29 +41,24 @@ enum USB_StatusCodes_t
     Status_ProcessingPacket     = 3, /**< Processing packet */
 };
 
-// USB Bulk input and output structures.
 typedef struct {
-    uint8_t Len;
-    char Buf[DATAARRAY_MAX_LEN];
-} Data_t;
+    char Buf[IN_EPSIZE];
+} InPacket_t;
 
 typedef struct {
-    uint8_t CommandID;
-    Data_t Data;
-} USBPacketOut_t;
+    char Buf[OUT_EPSIZE];
+} OutPacket_t;
 
 typedef struct {
-    uint8_t CommandID;
-    Data_t Data;
-} USBPacketIn_t;
-
-typedef struct {
-    USBPacketIn_t Packet;
+    //char Buf[IN_EPSIZE];
+    InPacket_t Packet;
+    uint8_t Pos;
 } USBIn_t;
 
 typedef struct {
-    USBPacketOut_t Packet;
-    uint8_t DataPos;
+    //char Buf[OUT_EPSIZE];
+    OutPacket_t Packet;
+    uint8_t Pos;
 } USBOut_t;
 
 // Sytem state structure
