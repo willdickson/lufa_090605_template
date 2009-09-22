@@ -204,6 +204,14 @@ TASK(USB_ProcessPacket)
                     case USB_CMD_STRUCT_GET:
                         USBIn_SetData(&SysState, sizeof(SysState_t));
                         break;
+
+                    case USB_CMD_FLOAT_SET:
+                        USBOut_GetData(&test_float, sizeof(float));
+                        break;
+
+                    case USB_CMD_FLOAT_GET:
+                        USBIn_SetData(&test_float, sizeof(float));
+                        break;
                         
                     case USB_CMD_AVR_RESET:
                         USBPacket_Write();

@@ -23,6 +23,8 @@
 #define USB_CMD_TEST_GET 4
 #define USB_CMD_STRUCT_SET 5
 #define USB_CMD_STRUCT_GET 6
+#define USB_CMD_FLOAT_SET 7
+#define USB_CMD_FLOAT_GET 8
 #define USB_CMD_AVR_RESET       200
 #define USB_CMD_AVR_DFU_MODE    201
 
@@ -74,6 +76,7 @@ uint32_t count=0;
 USBIn_t USBIn;
 USBOut_t USBOut;
 SysState_t SysState = {Val8:0,Val16:0,Val32:0};
+float test_float;
 
 /* Task Definitions: */
 TASK(USB_ProcessPacket);

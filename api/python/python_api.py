@@ -60,6 +60,8 @@ USB_CMD_TEST_SET = ctypes.c_uint8(3)
 USB_CMD_TEST_GET = ctypes.c_uint8(4)
 USB_CMD_STRUCT_SET = ctypes.c_uint8(5)
 USB_CMD_STRUCT_GET = ctypes.c_uint8(6)
+USB_CMD_FLOAT_SET = ctypes.c_uint8(7)
+USB_CMD_FLOAT_GET = ctypes.c_uint8(8)
 USB_CMD_AVR_RESET = ctypes.c_uint8(200)
 USB_CMD_AVR_DFU_MODE = ctypes.c_uint8(201)
 
@@ -415,7 +417,8 @@ if __name__ == '__main__':
         val_list = dev.usb_cmd(outdata,intypes)
         print val_list
         print 
-    if 1:
+        
+    if 0:
         class SysState_t(ctypes.Structure):
             _fields_ = [
                     ('Val8', ctypes.c_uint8),
@@ -455,10 +458,33 @@ if __name__ == '__main__':
         print 'SysState:', SysState.Val8, SysState.Val16, SysState.Val32
         print 
 
+    if 1:
 
+        outdata = [USB_CMD_FLOAT_GET]
+        intypes = [ctypes.c_uint8, ctypes.c_float]
+        val_list = dev.usb_cmd(outdata,intypes)
+        cmd_id = val_list[0]
+        test_float = val_list[1]
+        print 'cmd id:', cmd_id
+        print 'test_float:', test_float
+        print
 
+        test_float = ctypes.c_float(test_float.value + 1.15) 
+        outdata = [USB_CMD_FLOAT_SET, test_float]
+        intypes = [ctypes.c_uint8] 
+        val_list = dev.usb_cmd(outdata, intypes)
+        print 'cmd id:', cmd_id
+        print 'set float to:', test_float
+        print
 
-
+        outdata = [USB_CMD_FLOAT_GET]
+        intypes = [ctypes.c_uint8, ctypes.c_float]
+        val_list = dev.usb_cmd(outdata,intypes)
+        cmd_id = val_list[0]
+        test_float = val_list[1]
+        print 'cmd id:', cmd_id
+        print 'test_float:', test_float
+        print
 
 
     dev.close()
