@@ -40,8 +40,7 @@ import time
 import math
 import struct
 
-DEBUG = False 
-INT32_MAX = (2**32-1)/2
+DEBUG = True 
 
 # USB parameters
 USB_VENDOR_ID = 0x0004 
@@ -50,7 +49,6 @@ USB_BULKOUT_EP_ADDRESS = 0x01
 USB_BULKIN_EP_ADDRESS = 0x82
 USB_BUFFER_OUT_SIZE = 64 
 USB_BUFFER_IN_SIZE = 64
-USB_DATA_PACKET_SIZE = 30
 
 # USB Command IDs
 USB_CMD_TEST8 = ctypes.c_uint8(0)
@@ -65,17 +63,6 @@ USB_CMD_FLOAT_GET = ctypes.c_uint8(8)
 USB_CMD_AVR_RESET = ctypes.c_uint8(200)
 USB_CMD_AVR_DFU_MODE = ctypes.c_uint8(201)
 
-def debug(val):
-    if DEBUG==True:
-        print >> sys.stderr, val
-
-def debug_print(msg, comma=False):
-    if DEBUG==True:
-        if comma==True:
-            print msg, 
-        else:
-            print msg
-        sys.stdout.flush()
 
 class USB_Device:
 
@@ -83,7 +70,14 @@ class USB_Device:
     Example USB interface to the at90usb based stepper motor controller board.
     """
 
-    def __init__(self,serial_number=None):
+    def __init__(
+            self,
+            serial_number=None,
+            usb_product_id=USB_PRODUCT_ID,
+            usb_vendor_id=USB_VENDOR_ID,
+            usb_bulkout_ep_address=USB_BULKOUT_EP_ADDRESS,
+            usb_bulkin_sp_address=USB_BULKIN_EP_ADDRESS,
+            ):
         """
         Open and initialize usb device.
         
@@ -92,8 +86,6 @@ class USB_Device:
         Return: None.
         """
         usb.init()
-
-        #usb.set_debug(3)
         
         # Get usb busses
         if not usb.get_busses():
@@ -138,11 +130,11 @@ class USB_Device:
             # non-portable libusb function available
             name = usb.get_driver_np(self.libusb_handle,self.interface_nr)
             if name != '':
-                debug("attached to kernel driver '%s', detaching."%name )
+                debug_print("attached to kernel driver '%s', detaching."%name )
                 usb.detach_kernel_driver_np(self.libusb_handle,self.interface_nr)
 
         if dev.descriptor.bNumConfigurations > 1:
-            debug("WARNING: more than one configuration, choosing first")
+            debug_print("WARNING: more than one configuration, choosing first")
 
         usb.set_configuration(self.libusb_handle, self.dev.config[0].bConfigurationValue)
         usb.claim_interface(self.libusb_handle, self.interface_nr)
@@ -373,6 +365,14 @@ class USB_Device:
         print '   serial number:',self.get_serial_number()
         
 
+def debug_print(msg, comma=False):
+    if DEBUG==True:
+        if comma==True:
+            print >> sys.stderr, msg, 
+        else:
+            print >> sys.stderr, msg
+        sys.stdout.flush()
+
 #-------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
@@ -469,7 +469,7 @@ if __name__ == '__main__':
         print 'test_float:', test_float
         print
 
-        test_float = ctypes.c_float(test_float.value + 1.15) 
+        test_float = ctypes.c_float(test_float.value + 1.5) 
         outdata = [USB_CMD_FLOAT_SET, test_float]
         intypes = [ctypes.c_uint8] 
         val_list = dev.usb_cmd(outdata, intypes)
