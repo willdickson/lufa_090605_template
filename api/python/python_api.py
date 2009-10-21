@@ -211,6 +211,11 @@ class USB_Device:
         
     def __val_to_buffer(self,val):
         buf_ptr = ctypes.byref(self.output_buffer,self.output_buffer_pos)
+        # -----------------------------------------------------
+        # For python versions < 2.6
+        # buf_ptr = ctypes.pointer(self.output_buffer)
+        # buf_ptr = pointer_incr(buf_ptr,self.output_buffer_pos)
+        # -----------------------------------------------------
         val_ptr = ctypes.pointer(val)
         sz = ctypes.sizeof(val)
         if self.output_buffer_pos + sz >  USB_BUFFER_OUT_SIZE:
@@ -221,6 +226,11 @@ class USB_Device:
 
     def __val_from_buffer(self,val):
         buf_ptr = ctypes.byref(self.input_buffer,self.input_buffer_pos)
+        # -----------------------------------------------------
+        # For python version < 2.6
+        # buf_ptr = ctypes.pointer(self.input_buffer)
+        # buf_ptr = pointer_incr(buf_ptr,self.input_buffer_pos)
+        # -----------------------------------------------------
         val_ptr = ctypes.pointer(val)
         sz = ctypes.sizeof(val)
         if self.input_buffer_pos + sz > USB_BUFFER_IN_SIZE:
@@ -372,6 +382,15 @@ def debug_print(msg, comma=False):
         else:
             print >> sys.stderr, msg
         sys.stdout.flush()
+
+def pointer_incr(ptr,offset):
+    """
+    Increments pointer by given offset. For use with python
+    version < 2.6 where the byref function doesn't exist.
+    """
+    address = ctypes.addressof(ptr.contents) + offset
+    new_ptr = ctypes.pointer(type(ptr.contents).from_address(address))
+    return new_ptr
 
 #-------------------------------------------------------------------------------------
 if __name__ == '__main__':
