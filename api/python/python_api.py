@@ -159,7 +159,7 @@ class USB_Device:
         if get_python_vnum() >= BYREF_EXISTS_VNUM:
             self.byref = ctypes.byref
         else:
-            self.byref = byref_pointer
+            self.byref = byref_via_pointer
 
     def close(self):
         """
@@ -388,7 +388,7 @@ def pointer_incr(ptr,offset):
     new_ptr = ctypes.pointer(type(ptr.contents).from_address(address))
     return new_ptr
 
-def pointer_byref(buf,offset):
+def byref_via_pointer(buf,offset):
     """
     Used for bref function w/ offset argument when working with 
     versions of python < 2.6
