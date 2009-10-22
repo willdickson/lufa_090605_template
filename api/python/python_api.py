@@ -41,6 +41,7 @@ import math
 import struct
 
 DEBUG = True 
+BYREF_EXISTS_VNUM = 2.6
 
 # USB parameters
 USB_VENDOR_ID = 0x0004 
@@ -154,6 +155,11 @@ class USB_Device:
         self.output_buffer_pos = 0
         self.input_buffer_pos = 0
 
+        # Set bref function based on python version
+        if get_python_vnum() >= BYREF_EXISTS_VNUM:
+            self.byref = ctypes.byref
+        else:
+            self.byref = byref_pointer
 
     def close(self):
         """
@@ -210,12 +216,7 @@ class USB_Device:
         return 
         
     def __val_to_buffer(self,val):
-        buf_ptr = ctypes.byref(self.output_buffer,self.output_buffer_pos)
-        # -----------------------------------------------------
-        # For python versions < 2.6
-        # buf_ptr = ctypes.pointer(self.output_buffer)
-        # buf_ptr = pointer_incr(buf_ptr,self.output_buffer_pos)
-        # -----------------------------------------------------
+        buf_ptr = self.byref(self.output_buffer,self.output_buffer_pos)
         val_ptr = ctypes.pointer(val)
         sz = ctypes.sizeof(val)
         if self.output_buffer_pos + sz >  USB_BUFFER_OUT_SIZE:
@@ -225,12 +226,7 @@ class USB_Device:
         return 
 
     def __val_from_buffer(self,val):
-        buf_ptr = ctypes.byref(self.input_buffer,self.input_buffer_pos)
-        # -----------------------------------------------------
-        # For python version < 2.6
-        # buf_ptr = ctypes.pointer(self.input_buffer)
-        # buf_ptr = pointer_incr(buf_ptr,self.input_buffer_pos)
-        # -----------------------------------------------------
+        buf_ptr = self.byref(self.input_buffer,self.input_buffer_pos)
         val_ptr = ctypes.pointer(val)
         sz = ctypes.sizeof(val)
         if self.input_buffer_pos + sz > USB_BUFFER_IN_SIZE:
@@ -391,6 +387,23 @@ def pointer_incr(ptr,offset):
     address = ctypes.addressof(ptr.contents) + offset
     new_ptr = ctypes.pointer(type(ptr.contents).from_address(address))
     return new_ptr
+
+def pointer_byref(buf,offset):
+    """
+    Used for bref function w/ offset argument when working with 
+    versions of python < 2.6
+    """
+    buf_ptr = ctypes.pointer(buf)
+    buf_ptr = pointer_incr(buf_ptr,offset)
+    return buf_ptr
+
+def get_python_vnum():
+    """
+    Returns python version number.
+    """
+    v = sys.version_info
+    return v[0]+ 0.1*v[1]+0.01*v[2]
+    
 
 #-------------------------------------------------------------------------------------
 if __name__ == '__main__':
