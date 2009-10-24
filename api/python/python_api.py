@@ -450,8 +450,9 @@ if __name__ == '__main__':
         print val_list
         print 
         
-    if 0:
+    if 1:
         class SysState_t(ctypes.Structure):
+            _pack_=1
             _fields_ = [
                     ('Val8', ctypes.c_uint8),
                     ('Val16', ctypes.c_uint16),
@@ -490,7 +491,7 @@ if __name__ == '__main__':
         print 'SysState:', SysState.Val8, SysState.Val16, SysState.Val32
         print 
 
-    if 1:
+    if 0:
 
         outdata = [USB_CMD_FLOAT_GET]
         intypes = [ctypes.c_uint8, ctypes.c_float]
