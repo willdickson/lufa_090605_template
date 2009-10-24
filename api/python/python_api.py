@@ -451,7 +451,7 @@ if __name__ == '__main__':
         print 
         
     if 1:
-        class SysState_t(ctypes.Structure):
+        class SysState_t(ctypes.LittleEndianStructure):
             _pack_=1
             _fields_ = [
                     ('Val8', ctypes.c_uint8),
